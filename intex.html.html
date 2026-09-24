@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Clash Arena: AI World Champions</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #0d1117;
+            color: #ffffff;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            overflow: hidden;
+        }
+        .font-header {
+            font-family: 'Teko', sans-serif;
+            letter-spacing: 1px;
+        }
+        .glass-card {
+            background: rgba(22, 27, 34, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .btn-gold {
+            background: linear-gradient(135deg, #ffd700 0%, #ffa500 100%);
+            color: #1a1a1a;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+        }
+        .btn-gold:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 5px rgba(255, 215, 0, 0.4);
+        }
+        .card-slot {
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .card-slot.selected {
+            transform: translateY(-12px) scale(1.08);
+            border-color: #3b82f6;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
+        }
+        .card-slot.disabled {
+            filter: grayscale(0.8) opacity(0.6);
+            transform: none !important;
+        }
+        #gameCanvas {
+            background: #1e293b;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            cursor: pointer;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col justify-center items-center p-0 md:p-4 bg-slate-950">
+
+    <div id="appContainer" class="w-full max-w-md h-full md:h-[92vh] flex flex-col justify-between glass-card md:rounded-3xl relative overflow-hidden shadow-2xl border-slate-800">
+
+        <!-- HEADER: PLAYER PROFILE & TROPHIES -->
+        <header class="p-3 bg-slate-900/90 border-b border-slate-800 flex justify-between items-center z-10">
+            <div class="flex items-center gap-3">
+                <div class="relative">
+                    <div id="playerAvatar" class="w-11 h-11 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center text-slate-950 font-bold text-xl shadow-lg">
+                        <i class="fa-solid fa-crown"></i>
+                    </div>
+                    <span id="playerLevel" class="absolute -bottom-1 -right-1 bg-blue-600 text-xs px-1.5 py-0.2 rounded-full font-bold border border-slate-900">Nv.1</span>
+                </div>
+                <div>
+                    <h2 id="playerName" class="font-bold text-sm tracking-wide text-slate-100">Comandante</h2>
+                    <div class="flex items-center gap-1.5 text-xs text-amber-400 font-semibold">
+                        <i class="fa-solid fa-trophy"></i>
+                        <span id="trophyCount">0</span>
+                        <span id="rankBadge" class="ml-2 px-2 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300 border border-slate-700">Bronce</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MENU TABS -->
+            <div class="flex gap-2">
+                <button onclick="toggleSound()" id="soundBtn" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 border border-slate-700 transition">
+                    <i class="fa-solid fa-volume-high"></i>
+                </button>
+                <button onclick="openLeaderboard()" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-amber-400 border border-slate-700 transition">
+                    <i class="fa-solid fa-ranking-star"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- SCREEN 1: MAIN MENU / ARENA SELECTOR -->
+        <div id="menuScreen" class="flex-1 flex flex-col justify-between p-4 overflow-y-auto z-10">
+            
+            <!-- WORLD / ARENA DISPLAY CARD -->
+            <div class="my-auto text-center flex flex-col items-center">
+                <div class="text-xs uppercase tracking-widest text-slate-400 font-bold mb-1">Mundo Actual</div>
+                <h1 id="worldTitle" class="font-header text-4xl text-amber-400 font-bold uppercase tracking-wide drop-shadow-md">Arena 1: Bosque Duende</h1>
+                
+                <!-- ARENA BANNER PREVIEW -->
+                <div id="arenaBanner" class="w-full h-44 my-4 rounded-2xl relative overflow-hidden border-2 border-slate-700 shadow-2xl flex items-center justify-center bg-cover bg-center transition-all duration-500">
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent"></div>
+                    <div id="arenaIcon" class="text-6xl text-emerald-400 drop-shadow-[0_10px_10px_rgba(0,0,0,0.8)] transition-transform duration-300">
+                        <i class="fa-solid fa-tree"></i>
+                    </div>
+                    <div id="arenaTrophyReq" class="absolute bottom-3 bg-slate-900/90 text-amber-300 text-xs font-bold px-3 py-1 rounded-full border border-amber-500/30">
+                        <i class="fa-solid fa-trophy mr-1"></i> 0+ Copas
+                    </div>
+                </div>
+
+                <!-- WORLD NAVIGATOR -->
+                <div class="flex items-center gap-4 my-2">
+                    <button onclick="changeWorld(-1)" class="w-10 h-10 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 border border-slate-700">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <span id="worldIndicator" class="text-xs font-bold text-slate-400">Mundo 1 / 4</span>
+                    <button onclick="changeWorld(1)" class="w-10 h-10 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 border border-slate-700">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- BATTLE BUTTON -->
+            <div class="w-full space-y-3 mb-2">
+                <button onclick="startBattle()" id="startBattleBtn" class="w-full py-4 rounded-2xl btn-gold font-header text-2xl font-bold uppercase tracking-wider flex items-center justify-center gap-3 transition-transform active:scale-95">
+                    <i class="fa-solid fa-swords text-2xl"></i> ¡Batallar Ahora!
+                </button>
+            </div>
+        </div>
+
+        <!-- SCREEN 2: BATTLE SCREEN -->
+        <div id="battleScreen" class="hidden flex-1 flex flex-col justify-between p-2 relative">
+            
+            <!-- TOP BATTLE HUD -->
+            <div class="flex justify-between items-center px-2 py-1 bg-slate-900/80 rounded-xl border border-slate-800">
+                <div class="flex items-center gap-2">
+                    <div class="text-red-400 font-bold text-sm flex items-center gap-1">
+                        <i class="fa-solid fa-crown"></i> <span id="enemyCrowns">0</span>
+                    </div>
+                    <span class="text-slate-500">vs</span>
+                    <div class="text-blue-400 font-bold text-sm flex items-center gap-1">
+                        <i class="fa-solid fa-crown"></i> <span id="playerCrowns">0</span>
+                    </div>
+                </div>
+                <div id="battleTimer" class="font-header text-2xl text-amber-400 font-bold tracking-wider">
+                    03:00
+                </div>
+                <button onclick="surrenderBattle()" class="text-xs bg-slate-800 hover:bg-red-900/50 text-slate-400 hover:text-red-300 px-2.5 py-1 rounded-lg border border-slate-700">
+                    Rendirse
+                </button>
+            </div>
+
+            <!-- GAME CANVAS -->
+            <div class="relative my-1 flex-1 flex items-center justify-center">
+                <canvas id="gameCanvas" class="w-full h-full object-contain"></canvas>
+            </div>
+
+            <!-- BOTTOM DECK & ELIXIR CONTROLS -->
+            <div class="bg-slate-900/90 p-2 rounded-2xl border border-slate-800 flex flex-col gap-2">
+                <!-- ELIXIR BAR -->
+                <div class="w-full bg-slate-950 h-3.5 rounded-full overflow-hidden p-0.5 border border-purple-900/50 relative">
+                    <div id="elixirBar" class="h-full bg-gradient-to-r from-purple-600 to-fuchsia-400 rounded-full transition-all duration-100" style="width: 30%;"></div>
+                    <span id="elixirText" class="absolute inset-0 text-[10px] font-bold flex items-center justify-center text-white drop-shadow">3.0 / 10</span>
+                </div>
+
+                <!-- CARDS DECK SLOTS -->
+                <div class="grid grid-cols-4 gap-2 h-20">
+                    <!-- Dynamic Cards Rendered via JS -->
+                    <div id="card0" onclick="selectCard(0)" class="card-slot bg-slate-800 rounded-xl border-2 border-slate-700 flex flex-col items-center justify-between p-1 relative cursor-pointer"></div>
+                    <div id="card1" onclick="selectCard(1)" class="card-slot bg-slate-800 rounded-xl border-2 border-slate-700 flex flex-col items-center justify-between p-1 relative cursor-pointer"></div>
+                    <div id="card2" onclick="selectCard(2)" class="card-slot bg-slate-800 rounded-xl border-2 border-slate-700 flex flex-col items-center justify-between p-1 relative cursor-pointer"></div>
+                    <div id="card3" onclick="selectCard(3)" class="card-slot bg-slate-800 rounded-xl border-2 border-slate-700 flex flex-col items-center justify-between p-1 relative cursor-pointer"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: LEADERBOARD -->
+        <div id="leaderboardModal" class="hidden absolute inset-0 bg-slate-950/90 backdrop-blur-md z-30 p-4 flex flex-col justify-between">
+            <div>
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="font-header text-3xl text-amber-400 font-bold"><i class="fa-solid fa-trophy mr-2"></i> Ranking Mundial</h2>
+                    <button onclick="closeLeaderboard()" class="text-slate-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div id="leaderboardList" class="space-y-2 max-h-[65vh] overflow-y-auto pr-1">
+                    <!-- Dynamic Rank Items -->
+                </div>
+            </div>
+            <button onclick="closeLeaderboard()" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold border border-slate-700">
+                Cerrar
+            </button>
+        </div>
+
+        <!-- MODAL: GAME OVER / RESULT -->
+        <div id="resultModal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-40 p-6 flex flex-col items-center justify-center text-center">
+            <div id="resultIcon" class="text-7xl mb-2 text-amber-400 animate-bounce">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            <h2 id="resultTitle" class="font-header text-5xl font-bold uppercase tracking-wide text-amber-400 mb-1">¡VICTORIA!</h2>
+            <p id="resultSubtitle" class="text-slate-400 text-sm mb-6">Has dominado la arena</p>
+            
+            <div class="bg-slate-900/80 rounded-2xl p-4 border border-slate-800 w-full mb-6 space-y-3">
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-slate-400">Trofeos Obtenidos:</span>
+                    <span id="trophyChange" class="font-bold text-emerald-400 text-lg">+30</span>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-slate-400">Torres Destruidas:</span>
+                    <span id="crownsSummary" class="font-bold text-amber-400">2 - 0</span>
+                </div>
+            </div>
+
+            <button onclick="closeResultModal()" class="w-full py-4 rounded-2xl btn-gold font-header text-2xl font-bold uppercase tracking-wider">
+                Continuar
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // Game State & Database
+        const state = {
+            trophies: parseInt(localStorage.getItem('cr_trophies')) || 0,
+            selectedWorldIndex: 0,
+            soundEnabled: true,
+            inBattle: false,
+            selectedCardIndex: null,
+            elixir: 5,
+            maxElixir: 10,
+            playerCrowns: 0,
+            enemyCrowns: 0,
+            battleTime: 180, // 3 Minutes
+            timerInterval: null,
+            elixirInterval: null,
+            aiInterval: null
+        };
+
+        // Arenas / Worlds Database
+        const WORLDS = [
+            {
+                id: 1,
+                name: "Arena 1: Bosque Duende",
+                minTrophies: 0,
+                bg: "from-emerald-900 to-slate-900",
+                canvasBg: "#15803d",
+                riverColor: "#0284c7",
+                bridgeColor: "#854d0e",
+                icon: "fa-tree",
+                iconColor: "text-emerald-400",
+                aiDifficulty: 1
+            },
+            {
+                id: 2,
+                name: "Arena 2: Pico Helado",
+                minTrophies: 300,
+                bg: "from-cyan-900 to-slate-900",
+                canvasBg: "#0284c7",
+                riverColor: "#bae6fd",
+                bridgeColor: "#475569",
+                icon: "fa-snowflake",
+                iconColor: "text-cyan-300",
+                aiDifficulty: 1.5
+            },
+            {
+                id: 3,
+                name: "Arena 3: Foso de Lava",
+                minTrophies: 800,
+                bg: "from-orange-950 to-slate-900",
+                canvasBg: "#431407",
+                riverColor: "#ea580c",
+                bridgeColor: "#27272a",
+                icon: "fa-fire",
+                iconColor: "text-orange-500",
+                aiDifficulty: 2
+            },
+            {
+                id: 4,
+                name: "Arena 4: Santuario Legendario",
+                minTrophies: 1500,
+                bg: "from-purple-950 to-slate-900",
+                canvasBg: "#3b0764",
+                riverColor: "#ec4899",
+                bridgeColor: "#eab308",
+                icon: "fa-shield-halved",
+                iconColor: "text-amber-400",
+                aiDifficulty: 2.5
+            }
+        ];
+
+        // Ranks Database
+        const RANKS = [
+            { min: 0, max: 299, name: "Bronce", color: "text-amber-600" },
+            { min: 300, max: 799, name: "Plata", color: "text-slate-300" },
+            { min: 800, max: 1499, name: "Oro", color: "text-yellow-400" },
+            { min: 1500, max: 2499, name: "Diamante", color: "text-cyan-400" },
+            { min: 2500, max: 3999, name: "Maestro", color: "text-purple-400" },
+            { min: 4000, max: 99999, name: "Leyenda", color: "text-rose-500" }
+        ];
+
+        // Cards Definition
+        const CARDS = [
+            { id: 'knight', name: 'Caballero', cost: 3, hp: 600, damage: 45, speed: 1.2, range: 25, type: 'melee', icon: 'fa-shield', color: '#3b82f6' },
+            { id: 'archer', name: 'Arquera', cost: 2, hp: 250, damage: 35, speed: 1.6, range: 120, type: 'ranged', icon: 'fa-crosshairs', color: '#ec4899' },
+            { id: 'mage', name: 'Mago', cost: 4, hp: 400, damage: 70, speed: 1.1, range: 100, type: 'splash', icon: 'fa-wand-magic-sparkles', color: '#a855f7' },
+            { id: 'giant', name: 'Gigante', cost: 5, hp: 1200, damage: 60, speed: 0.8, range: 30, type: 'tank', icon: 'fa-hand-fist', color: '#eab308' }
+        ];
+
+        // Deck Setup
+        let currentDeck = [...CARDS];
+
+        // Web Audio Synthesizer (No external audio file dependencies)
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function playSound(type) {
+            if (!state.soundEnabled) return;
+            if (!audioCtx) audioCtx = new AudioCtx();
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'deploy') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(400, now + 0.15);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'hit') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(120, now);
+                osc.frequency.linearRampToValueAtTime(40, now + 0.08);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+                osc.start(now);
+                osc.stop(now + 0.08);
+            } else if (type === 'win') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.setValueAtTime(400, now + 0.1);
+                osc.frequency.setValueAtTime(500, now + 0.2);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            }
+        }
+
+        function toggleSound() {
+            state.soundEnabled = !state.soundEnabled;
+            const btn = document.getElementById('soundBtn');
+            btn.innerHTML = state.soundEnabled ? 
+                '<i class="fa-solid fa-volume-high"></i>' : 
+                '<i class="fa-solid fa-volume-xmark text-red-400"></i>';
+        }
+
+        // Canvas Game Engine
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let entities = [];
+        let towers = [];
+        let animationFrameId = null;
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+
+        class Tower {
+            constructor(x, y, isPlayer, isKing = false) {
+                this.x = x;
+                this.y = y;
+                this.isPlayer = isPlayer;
+                this.isKing = isKing;
+                this.maxHp = isKing ? 2000 : 1200;
+                this.hp = this.maxHp;
+                this.range = 140;
+                this.damage = 25;
+                this.attackCooldown = 0;
+                this.radius = isKing ? 22 : 18;
+                this.alive = true;
+            }
+
+            draw() {
+                if (!this.alive) return;
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.isPlayer ? '#2563eb' : '#dc2626';
+                ctx.fill();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = this.isKing ? '#f59e0b' : '#ffffff';
+                ctx.stroke();
+
+                // Crown Symbol for King
+                if (this.isKing) {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '12px FontAwesome';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('👑', this.x, this.y);
+                }
+
+                // Health Bar
+                const barWidth = 36;
+                const barHeight = 5;
+                const hpPercent = Math.max(0, this.hp / this.maxHp);
+                ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                ctx.fillRect(this.x - barWidth / 2, this.y - this.radius - 10, barWidth, barHeight);
+                ctx.fillStyle = this.isPlayer ? '#3b82f6' : '#ef4444';
+                ctx.fillRect(this.x - barWidth / 2, this.y - this.radius - 10, barWidth * hpPercent, barHeight);
+                ctx.restore();
+            }
+
+            update() {
+                if (!this.alive) return;
+                if (this.attackCooldown > 0) this.attackCooldown--;
+
+                // Target nearest enemy
+                if (this.attackCooldown <= 0) {
+                    let target = null;
+                    let minDist = this.range;
+
+                    entities.forEach(ent => {
+                        if (ent.isPlayer !== this.isPlayer && ent.alive) {
+                            const dist = Math.hypot(ent.x - this.x, ent.y - this.y);
+                            if (dist < minDist) {
+                                minDist = dist;
+                                target = ent;
+                            }
+                        }
+                    });
+
+                    if (target) {
+                        target.hp -= this.damage;
+                        playSound('hit');
+                        this.attackCooldown = 40; // Attack speed frame delay
+                        if (target.hp <= 0) target.alive = false;
+                    }
+                }
+            }
+        }
+
+        class Unit {
+            constructor(card, x, y, isPlayer) {
+                this.card = card;
+                this.x = x;
+                this.y = y;
+                this.isPlayer = isPlayer;
+                this.hp = card.hp;
+                this.maxHp = card.hp;
+                this.damage = card.damage;
+                this.speed = card.speed;
+                this.range = card.range;
+                this.alive = true;
+                this.attackCooldown = 0;
+                this.radius = 12;
+            }
+
+            draw() {
+                if (!this.alive) return;
+                ctx.save();
+                
+                // Draw Unit Circle Body
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.card.color;
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = this.isPlayer ? '#60a5fa' : '#f87171';
+                ctx.stroke();
+
+                // Health Bar
+                const barWidth = 24;
+                const barHeight = 4;
+                const hpPercent = Math.max(0, this.hp / this.maxHp);
+                ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                ctx.fillRect(this.x - barWidth / 2, this.y - this.radius - 8, barWidth, barHeight);
+                ctx.fillStyle = this.isPlayer ? '#22c55e' : '#ef4444';
+                ctx.fillRect(this.x - barWidth / 2, this.y - this.radius - 8, barWidth * hpPercent, barHeight);
+
+                ctx.restore();
+            }
+
+            update() {
+                if (!this.alive) return;
+                if (this.attackCooldown > 0) this.attackCooldown--;
+
+                // Find Target (Tower or Enemy Unit)
+                let target = null;
+                let minDist = Infinity;
+
+                // Check enemy units
+                entities.forEach(ent => {
+                    if (ent !== this && ent.isPlayer !== this.isPlayer && ent.alive) {
+                        const dist = Math.hypot(ent.x - this.x, ent.y - this.y);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            target = ent;
+                        }
+                    }
+                });
+
+                // Check enemy towers if no close unit
+                if (!target || minDist > this.range) {
+                    towers.forEach(t => {
+                        if (t.isPlayer !== this.isPlayer && t.alive) {
+                            const dist = Math.hypot(t.x - this.x, t.y - this.y);
+                            if (dist < minDist) {
+                                minDist = dist;
+                                target = t;
+                            }
+                        }
+                    });
+                }
+
+                if (target && minDist <= this.range) {
+                    // Attack Target
+                    if (this.attackCooldown <= 0) {
+                        target.hp -= this.damage;
+                        playSound('hit');
+                        this.attackCooldown = 45;
+                        if (target.hp <= 0) target.alive = false;
+                    }
+                } else {
+                    // Move towards target or lane
+                    let moveTargetY = this.isPlayer ? 0 : canvas.height;
+                    let moveTargetX = this.x;
+
+                    if (target) {
+                        moveTargetX = target.x;
+                        moveTargetY = target.y;
+                    }
+
+                    const angle = Math.atan2(moveTargetY - this.y, moveTargetX - this.x);
+                    this.x += Math.cos(angle) * this.speed;
+                    this.y += Math.sin(angle) * this.speed;
+                }
+            }
+        }
+
+        function drawArena() {
+            const world = WORLDS[state.selectedWorldIndex];
+            
+            // Arena Field
+            ctx.fillStyle = world.canvasBg;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // River in Middle
+            const riverY = canvas.height / 2 - 15;
+            ctx.fillStyle = world.riverColor;
+            ctx.fillRect(0, riverY, canvas.width, 30);
+
+            // Bridges (Left and Right)
+            const bridgeWidth = 40;
+            const bridgeHeight = 36;
+            ctx.fillStyle = world.bridgeColor;
+            ctx.fillRect(canvas.width * 0.25 - bridgeWidth / 2, riverY - 3, bridgeWidth, bridgeHeight);
+            ctx.fillRect(canvas.width * 0.75 - bridgeWidth / 2, riverY - 3, bridgeWidth, bridgeHeight);
+
+            // Spawn Line (Middle border for player deployment)
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height / 2 + 15);
+            ctx.lineTo(canvas.width, canvas.height / 2 + 15);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        function gameLoop() {
+            if (!state.inBattle) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawArena();
+
+            // Update & Draw Towers
+            towers.forEach(tower => {
+                tower.update();
+                tower.draw();
+            });
+
+            // Update & Draw Units
+            entities.forEach(unit => {
+                unit.update();
+                unit.draw();
+            });
+
+            // Filter Dead Entities & Check Tower Destroys
+            entities = entities.filter(e => e.alive);
+            
+            // Check Tower State & Crowns
+            let playerCrowns = 0;
+            let enemyCrowns = 0;
+
+            towers.forEach(t => {
+                if (!t.alive) {
+                    if (t.isPlayer) enemyCrowns++;
+                    else playerCrowns++;
+                }
+            });
+
+            state.playerCrowns = playerCrowns;
+            state.enemyCrowns = enemyCrowns;
+            document.getElementById('playerCrowns').innerText = playerCrowns;
+            document.getElementById('enemyCrowns').innerText = enemyCrowns;
+
+            // Check Instant Win Condition (King Tower Destroyed)
+            const playerKing = towers.find(t => t.isPlayer && t.isKing);
+            const enemyKing = towers.find(t => !t.isPlayer && t.isKing);
+
+            if (!playerKing.alive || !enemyKing.alive) {
+                endBattle(enemyKing.alive ? 'loss' : 'win');
+                return;
+            }
+
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function initTowers() {
+            towers = [
+                // Enemy Towers (Top)
+                new Tower(canvas.width * 0.25, 60, false),
+                new Tower(canvas.width * 0.75, 60, false),
+                new Tower(canvas.width * 0.5, 30, false, true),
+
+                // Player Towers (Bottom)
+                new Tower(canvas.width * 0.25, canvas.height - 60, true),
+                new Tower(canvas.width * 0.75, canvas.height - 60, true),
+                new Tower(canvas.width * 0.5, canvas.height - 30, true, true)
+            ];
+        }
+
+        function renderDeckUI() {
+            currentDeck.forEach((card, index) => {
+                const el = document.getElementById(`card${index}`);
+                el.innerHTML = `
+                    <div class="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-purple-600 text-white text-[10px] font-bold flex items-center justify-center border border-white">
+                        ${card.cost}
+                    </div>
+                    <i class="fa-solid ${card.icon} text-2xl my-1" style="color: ${card.color}"></i>
+                    <span class="text-[10px] font-bold text-slate-200">${card.name}</span>
+                `;
+            });
+        }
+
+        function selectCard(index) {
+            if (!state.inBattle) return;
+            
+            const card = currentDeck[index];
+            if (state.elixir < card.cost) return;
+
+            document.querySelectorAll('.card-slot').forEach(s => s.classList.remove('selected'));
+            
+            if (state.selectedCardIndex === index) {
+                state.selectedCardIndex = null;
+            } else {
+                state.selectedCardIndex = index;
+                document.getElementById(`card${index}`).classList.add('selected');
+            }
+        }
+
+        // Canvas Click Listener for Deployment
+        canvas.addEventListener('click', (e) => {
+            if (!state.inBattle || state.selectedCardIndex === null) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+            // Restrict Deployment to Player's Side (Bottom half)
+            if (y < canvas.height / 2 + 10) return;
+
+            const card = currentDeck[state.selectedCardIndex];
+            if (state.elixir >= card.cost) {
+                state.elixir -= card.cost;
+                entities.push(new Unit(card, x, y, true));
+                playSound('deploy');
+
+                // Deselect Card
+                state.selectedCardIndex = null;
+                document.querySelectorAll('.card-slot').forEach(s => s.classList.remove('selected'));
+            }
+        });
+
+        function runAILogic() {
+            if (!state.inBattle) return;
+
+            const world = WORLDS[state.selectedWorldIndex];
+            // Higher difficulty = Faster AI card spawns
+            if (Math.random() < 0.3 * world.aiDifficulty) {
+                const randomCard = CARDS[Math.floor(Math.random() * CARDS.length)];
+                const spawnX = Math.random() * (canvas.width - 60) + 30;
+                const spawnY = Math.random() * (canvas.height / 3) + 40;
+
+                entities.push(new Unit(randomCard, spawnX, spawnY, false));
+            }
+        }
+
+        function updateProfileUI() {
+            document.getElementById('trophyCount').innerText = state.trophies;
+
+            // Find Current Rank
+            const rank = RANKS.find(r => state.trophies >= r.min && state.trophies <= r.max) || RANKS[0];
+            const badge = document.getElementById('rankBadge');
+            badge.innerText = rank.name;
+            badge.className = `ml-2 px-2 py-0.5 rounded bg-slate-800 text-[10px] font-bold border border-slate-700 ${rank.color}`;
+
+            // Save to LocalStorage
+            localStorage.setItem('cr_trophies', state.trophies);
+        }
+
+        function changeWorld(delta) {
+            state.selectedWorldIndex = (state.selectedWorldIndex + delta + WORLDS.length) % WORLDS.length;
+            const world = WORLDS[state.selectedWorldIndex];
+
+            document.getElementById('worldTitle').innerText = world.name;
+            document.getElementById('worldIndicator').innerText = `Mundo ${state.selectedWorldIndex + 1} / ${WORLDS.length}`;
+            document.getElementById('arenaIcon').className = `text-6xl ${world.iconColor} drop-shadow-[0_10px_10px_rgba(0,0,0,0.8)]`;
+            document.getElementById('arenaIcon').innerHTML = `<i class="fa-solid ${world.icon}"></i>`;
+            document.getElementById('arenaTrophyReq').innerHTML = `<i class="fa-solid fa-trophy mr-1"></i> ${world.minTrophies}+ Copas`;
+
+            // Lock or Unlock Start Button based on Trophies
+            const btn = document.getElementById('startBattleBtn');
+            if (state.trophies < world.minTrophies) {
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+                btn.innerText = `Requiere ${world.minTrophies} Copas`;
+            } else {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                btn.innerHTML = `<i class="fa-solid fa-swords text-2xl"></i> ¡Batallar Ahora!`;
+            }
+        }
+
+        function startBattle() {
+            state.inBattle = true;
+            state.elixir = 5;
+            state.playerCrowns = 0;
+            state.enemyCrowns = 0;
+            state.battleTime = 180;
+            entities = [];
+
+            document.getElementById('menuScreen').classList.add('hidden');
+            document.getElementById('battleScreen').classList.remove('hidden');
+
+            resizeCanvas();
+            initTowers();
+            renderDeckUI();
+
+            // Elixir Regen Loop
+            state.elixirInterval = setInterval(() => {
+                if (state.elixir < state.maxElixir) {
+                    state.elixir = Math.min(state.maxElixir, state.elixir + 0.5);
+                    const barPercent = (state.elixir / state.maxElixir) * 100;
+                    document.getElementById('elixirBar').style.width = `${barPercent}%`;
+                    document.getElementById('elixirText').innerText = `${state.elixir.toFixed(1)} / 10`;
+
+                    // Update Cards disabled state
+                    currentDeck.forEach((card, idx) => {
+                        const cardEl = document.getElementById(`card${idx}`);
+                        if (state.elixir < card.cost) cardEl.classList.add('disabled');
+                        else cardEl.classList.remove('disabled');
+                    });
+                }
+            }, 1000);
+
+            // Timer Loop
+            state.timerInterval = setInterval(() => {
+                state.battleTime--;
+                const mins = Math.floor(state.battleTime / 60).toString().padStart(2, '0');
+                const secs = (state.battleTime % 60).toString().padStart(2, '0');
+                document.getElementById('battleTimer').innerText = `${mins}:${secs}`;
+
+                if (state.battleTime <= 0) {
+                    endBattle(state.playerCrowns >= state.enemyCrowns ? 'win' : 'loss');
+                }
+            }, 1000);
+
+            // AI Loop
+            state.aiInterval = setInterval(runAILogic, 2500);
+
+            gameLoop();
+        }
+
+        function surrenderBattle() {
+            endBattle('loss');
+        }
+
+        function endBattle(result) {
+            state.inBattle = false;
+            clearInterval(state.elixirInterval);
+            clearInterval(state.timerInterval);
+            clearInterval(state.aiInterval);
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+
+            const isWin = result === 'win';
+            const trophyChange = isWin ? 30 : -15;
+            state.trophies = Math.max(0, state.trophies + trophyChange);
+            updateProfileUI();
+
+            // Show Result Modal
+            const modal = document.getElementById('resultModal');
+            const title = document.getElementById('resultTitle');
+            const icon = document.getElementById('resultIcon');
+            const trophyText = document.getElementById('trophyChange');
+
+            if (isWin) {
+                title.innerText = "¡VICTORIA!";
+                title.className = "font-header text-5xl font-bold uppercase tracking-wide text-amber-400 mb-1";
+                icon.className = "text-7xl mb-2 text-amber-400 animate-bounce";
+                icon.innerHTML = `<i class="fa-solid fa-trophy"></i>`;
+                trophyText.innerText = `+${trophyChange}`;
+                trophyText.className = "font-bold text-emerald-400 text-lg";
+                playSound('win');
+            } else {
+                title.innerText = "DERROTA";
+                title.className = "font-header text-5xl font-bold uppercase tracking-wide text-red-500 mb-1";
+                icon.className = "text-7xl mb-2 text-red-500";
+                icon.innerHTML = `<i class="fa-solid fa-heart-crack"></i>`;
+                trophyText.innerText = `${trophyChange}`;
+                trophyText.className = "font-bold text-red-400 text-lg";
+            }
+
+            document.getElementById('crownsSummary').innerText = `${state.playerCrowns} - ${state.enemyCrowns}`;
+            modal.classList.remove('hidden');
+        }
+
+        function closeResultModal() {
+            document.getElementById('resultModal').classList.add('hidden');
+            document.getElementById('battleScreen').classList.add('hidden');
+            document.getElementById('menuScreen').classList.remove('hidden');
+            changeWorld(0);
+        }
+
+        function openLeaderboard() {
+            const list = document.getElementById('leaderboardList');
+            list.innerHTML = '';
+
+            const simulatedPlayers = [
+                { name: "ProGamer_99", trophies: 3200 },
+                { name: "ReyClash", trophies: 2850 },
+                { name: "SombraIA", trophies: 2100 },
+                { name: "TácticaMaster", trophies: 1450 },
+                { name: "Comandante (Tú)", trophies: state.trophies, isUser: true }
+            ].sort((a, b) => b.trophies - a.trophies);
+
+            simulatedPlayers.forEach((p, index) => {
+                const rankColor = index === 0 ? 'text-amber-400' : index === 1 ? 'text-slate-300' : index === 2 ? 'text-amber-600' : 'text-slate-400';
+                list.innerHTML += `
+                    <div class="flex justify-between items-center p-3 rounded-xl ${p.isUser ? 'bg-blue-900/40 border border-blue-500/50' : 'bg-slate-900/60 border border-slate-800'}">
+                        <div class="flex items-center gap-3">
+                            <span class="font-bold text-lg ${rankColor} w-6">#${index + 1}</span>
+                            <span class="font-semibold text-sm ${p.isUser ? 'text-blue-300' : 'text-slate-200'}">${p.name}</span>
+                        </div>
+                        <div class="flex items-center gap-1 text-amber-400 font-bold text-sm">
+                            <i class="fa-solid fa-trophy"></i> ${p.trophies}
+                        </div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('leaderboardModal').classList.remove('hidden');
+        }
+
+        function closeLeaderboard() {
+            document.getElementById('leaderboardModal').classList.add('hidden');
+        }
+
+        // Window Event Listeners
+        window.addEventListener('resize', resizeCanvas);
+        window.onload = () => {
+            updateProfileUI();
+            changeWorld(0);
+        };
+    </script>
+</body>
+</html>
